@@ -137,7 +137,7 @@ def _load_builtin_and_plugins() -> None:
     if _loaded:
         return
     _loaded = True
-    from . import omnilingual, qwen, whisper  # noqa: F401  (register built-ins)
+    from . import omnilingual, qwen, voxtral, whisper  # noqa: F401  (register built-ins)
 
     from importlib.metadata import entry_points
 

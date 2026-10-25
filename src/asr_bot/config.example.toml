@@ -98,6 +98,18 @@ model = "omniASR_LLM_Unlimited_3B_v2"   # 300M/1B/3B/7B variants exist
 # fast_weights = true
 # weights_dir = "~/.cache/asr-bot/weights"
 
+# Voxtral Mini 4B Realtime (13 languages: en fr es de ru zh ja it pt nl ar hi ko; no Armenian).
+# Not used unless you pick it with /engine, in /admin, or add it to [routing]. Needs asr-bot[voxtral].
+# [engines.voxtral]
+# type = "voxtral"
+# checkpoint = "/path/to/checkpoint"   # directory with config.json, model.safetensors and tekken.json.
+#                                      # Unset = the original Mistral release (~9 GB, downloaded once).
+# delay_ms = 2400                      # 80..2400; offline, the longest delay is the most accurate
+# dtype = "auto"                       # bf16 on GPU, fp32 on CPU
+# compile = false                      # torch.compile the decoder step: ~50 s once, then cached
+# languages = ["en", "ru", "hy"]       # for a fine-tuned checkpoint: the languages it handles
+# cache_dir = "~/.cache/asr-bot/voxtral"
+
 # Language detectors.
 [detectors.whisper]
 type = "whisper-lid"

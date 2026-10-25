@@ -53,6 +53,19 @@ def cer(ref: str, hyp: str) -> float:
     return prev[-1] / max(len(r), 1)
 
 
+def _voxtral_engines() -> dict:
+    """``voxtral`` = the original release (ASR_BOT_TEST_VOXTRAL_CKPT can point at a local copy of it, to
+    skip the download); ``voxtral-custom`` = the checkpoint in ASR_BOT_TEST_VOXTRAL_CUSTOM, if set."""
+    original = {"type": "voxtral"}
+    if os.environ.get("ASR_BOT_TEST_VOXTRAL_CKPT"):
+        original["checkpoint"] = os.environ["ASR_BOT_TEST_VOXTRAL_CKPT"]
+    engines = {"voxtral": original}
+    if os.environ.get("ASR_BOT_TEST_VOXTRAL_CUSTOM"):
+        engines["voxtral-custom"] = {"type": "voxtral", "languages": ["hy", "ru", "en"],
+                                     "checkpoint": os.environ["ASR_BOT_TEST_VOXTRAL_CUSTOM"]}
+    return engines
+
+
 @pytest.fixture(scope="module")
 def manager():
     cfg = config_from_dict({
@@ -63,6 +76,7 @@ def manager():
                            "languages": ["hy"], "max_chunk_seconds": 12},
             "qwen3": {"type": "qwen3-asr", "model": "Qwen/Qwen3-ASR-1.7B"},
             "omnilingual": {"type": "omnilingual", "model": "omniASR_LLM_Unlimited_3B_v2"},
+            **_voxtral_engines(),
         },
     })
     em = EngineManager(cfg)
@@ -79,11 +93,11 @@ async def test_language_detection(manager, detector):
         assert guess.language == code
 
 
-@pytest.mark.parametrize("engine", ["whisper", "whisper-hy", "qwen3", "omnilingual"])
+@pytest.mark.parametrize("engine", ["whisper", "whisper-hy", "qwen3", "omnilingual", "voxtral", "voxtral-custom"])
 async def test_engine_quality(manager, engine):
     eng = manager.engines.get(engine)
     if eng is None:
-        pytest.skip(f"{engine} unavailable: {manager.unavailable.get(engine)}")
+        pytest.skip(f"{engine} unavailable: {manager.unavailable.get(engine, 'not configured')}")
     results = {}
     clips = [c for c in _clips() if eng.supports(c[1])]
     warm = Audio.from_file(clips[0][0], _work())

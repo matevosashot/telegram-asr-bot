@@ -19,9 +19,10 @@ dependencies = [
 [project.optional-dependencies]
 whisper = ["faster-whisper>=1.1"]
 qwen = ["qwen-asr"]
+voxtral = ["mistral-common>=1.8", "soundfile", "soxr", "safetensors", "huggingface_hub"]
 omni = ["omnilingual-asr", "safetensors", "pyarrow<21"]  # pyarrow>=21 needs numpy 2, fairseq2 pins numpy 1.x
 voxlingua = ["speechbrain>=1.0"]
-all = ["asr-bot[whisper,qwen,omni,voxlingua]"]
+all = ["asr-bot[whisper,qwen,omni,voxtral,voxlingua]"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
 
 [project.scripts]
