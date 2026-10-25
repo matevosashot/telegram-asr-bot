@@ -1,26 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="asr-bot logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30.72 30.72 450.56 450.56" width="512" height="512" role="img" aria-label="asr-bot logo">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#4f46e5"/>
       <stop offset="1" stop-color="#06b6d4"/>
     </linearGradient>
-    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0.95"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Square with rounded corners, trimmed 6% per side via the viewBox; the artwork stays well inside Telegram's circular avatar crop. -->
+  <rect x="30.72" y="30.72" width="450.56" height="450.56" rx="100" fill="url(#bg)"/>
   <!-- voice: two sound arcs -->
   <g fill="none" stroke="url(#wave)" stroke-width="22" stroke-linecap="round">
-    <path d="M92 214 A116 116 0 0 0 92 298" transform="translate(-6 32)"/>
-    <path d="M142 186 A150 150 0 0 0 142 326" transform="translate(-6 32)"/>
+    <path d="M112 222 A60 60 0 0 0 112 290"/>
+    <path d="M84 200 A90 90 0 0 0 84 312"/>
   </g>
-  <!-- text: speech bubble whose tail points at the voice -->
-  <path d="M232 150 H388 A48 48 0 0 1 436 198 V290 A48 48 0 0 1 388 338 H232 A48 48 0 0 1 184 290 V279 L160 262 Q150 256 160 250 L184 233 V198 A48 48 0 0 1 232 150 Z"
-        transform="translate(14 38)" fill="#fff"/>
+  <!-- text: speech bubble, centred on the canvas, tail pointing at the voice -->
+  <path d="M209 176 H351 A44 44 0 0 1 395 220 V292 A44 44 0 0 1 351 336 H209 A44 44 0 0 1 165 292 V274 L150 263 Q134 256 150 249 L165 238 V220 A44 44 0 0 1 209 176 Z" fill="#fff"/>
   <!-- transcript lines -->
-  <g stroke="#4f46e5" stroke-width="20" stroke-linecap="round">
-    <line x1="246" y1="258" x2="394" y2="258"/>
-    <line x1="246" y1="302" x2="340" y2="302" stroke="#06b6d4"/>
+  <g stroke-width="20" stroke-linecap="round">
+    <line x1="199" y1="236" x2="361" y2="236" stroke="#4f46e5"/>
+    <line x1="199" y1="276" x2="305" y2="276" stroke="#06b6d4"/>
   </g>
 </svg>
