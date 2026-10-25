@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.svg" width="128" alt="asr-bot logo"></p>
+
 # asr-bot
 
 A Telegram bot that transcribes voice messages. It runs local, swappable ASR engines
@@ -57,6 +59,11 @@ asr-bot run          # long polling
     change it live from `/admin`, and those values are stored in the database.
   - The database lives in `~/.local/share/asr-bot/bot.db`.
 * **Running as a service:** see [`deploy/asr-bot.service`](deploy/asr-bot.service) (systemd user unit).
+* **Keeping models on the GPU:** `transcription.keep_loaded = ["omnilingual", "whisper"]` loads those
+  engines (or detectors) at startup and never unloads them: not on idle, not on `/unload`, not when
+  another model runs out of memory. Combine with `idle_unload_minutes = 0`. Check that they fit in VRAM together.
+* **No language detection:** `language_detector = "none"` skips detection. Use it with a fixed
+  `default_engine` (e.g. `omnilingual`); replies then have no language flag or name.
 
 ### BotFather settings
 
@@ -86,7 +93,7 @@ Privacy mode can stay **on**: commands such as `/t` are still delivered in group
 | `/block @username\|id` | Ignore completely |
 | `/users`, `/recent [n]`, `/stats` | People, the activity log, usage numbers |
 | `/languages hy ru en` | Candidate languages (`/languages any` to clear) |
-| `/unload` | Free GPU memory now. Models also unload after `idle_unload_minutes`. |
+| `/unload` | Free GPU memory now (except `keep_loaded` models). Models also unload after `idle_unload_minutes`. |
 
 ## How language detection and routing work
 

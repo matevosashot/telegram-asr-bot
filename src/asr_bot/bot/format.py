@@ -17,10 +17,12 @@ MAX_CHUNKS = 3
 
 def header(result: Result) -> str:
     lang = result.language
-    parts = [f"{languages.flag(lang)} {languages.name(lang)}"]
-    g = result.guess
-    if g and g.language == lang and g.probability:
-        parts[0] += f" {g.probability:.0%}"
+    parts = []
+    if lang:  # no language detector and no engine-reported language: no language tag
+        parts.append(f"{languages.flag(lang)} {languages.name(lang)}")
+        g = result.guess
+        if g and g.language == lang and g.probability:
+            parts[0] += f" {g.probability:.0%}"
     parts.append(result.engine)
     parts.append(fmt_duration(result.transcript.duration))
     return " · ".join(parts)

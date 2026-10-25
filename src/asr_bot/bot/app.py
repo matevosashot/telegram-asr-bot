@@ -155,6 +155,7 @@ async def _post_init(app: Application) -> None:
     except TelegramError as e:
         log.warning("could not set bot commands: %s", e)
     svc.engines.start_idle_unloader()
+    svc.engines.start_preload()
 
 
 async def _post_shutdown(app: Application) -> None:

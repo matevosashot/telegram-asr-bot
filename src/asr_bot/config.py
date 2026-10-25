@@ -74,6 +74,8 @@ class Config:
     detectors: dict[str, dict[str, Any]]
     device: str = "cuda"
     idle_unload_minutes: float = 15
+    # Engines/detectors loaded at startup and never unloaded (idle timer, /unload, OOM eviction).
+    keep_loaded: list[str] = field(default_factory=list)
     store_transcripts: bool = False
     log_level: str = "INFO"
     path: Path | None = None
@@ -146,6 +148,7 @@ def config_from_dict(data: dict[str, Any], path: Path | None = None) -> Config:
         detectors=detectors,
         device=tr.get("device", "cuda"),
         idle_unload_minutes=float(tr.get("idle_unload_minutes", 15)),
+        keep_loaded=list(tr.get("keep_loaded", [])),
         store_transcripts=bool(data.get("storage", {}).get("store_transcripts", False)),
         log_level=data.get("logging", {}).get("level", "INFO"),
         path=path,
@@ -156,6 +159,9 @@ def config_from_dict(data: dict[str, Any], path: Path | None = None) -> Config:
 
 def _validate(cfg: Config) -> None:
     names = set(cfg.engines)
+    for name in cfg.keep_loaded:
+        if name not in names and name not in cfg.detectors:
+            raise ConfigError(f"transcription.keep_loaded: unknown engine or detector {name!r}")
     for name in [*cfg.engines, *cfg.detectors]:
         # Names end up in inline-button callback data (max 64 bytes).
         if len(name.encode()) > 32 or ":" in name:
@@ -169,5 +175,5 @@ def _validate(cfg: Config) -> None:
     d = cfg.defaults
     if d.default_engine != "auto" and d.default_engine not in names:
         raise ConfigError(f"default_engine {d.default_engine!r} is not a configured engine")
-    if d.language_detector not in cfg.detectors and d.language_detector != "engine-scoring":
+    if d.language_detector not in cfg.detectors and d.language_detector not in ("engine-scoring", "none"):
         raise ConfigError(f"language_detector {d.language_detector!r} is not configured")
