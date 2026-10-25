@@ -27,8 +27,10 @@ level = "INFO"
 [transcription]
 # "auto" routes by detected language (see [routing]); or a name from [engines.*].
 default_engine = "auto"
-# A name from [detectors.*], or "engine-scoring" (transcribe a short clip once per candidate
-# language with an engine that supports scoring, and keep the most likely language).
+# A name from [detectors.*], "engine-scoring" (transcribe a short clip once per candidate
+# language with an engine that supports scoring, and keep the most likely language), or "none"
+# (no detection: the engine decides and replies carry no language flag/name; pair it with a
+# fixed default_engine, since "auto" routes by detected language).
 language_detector = "whisper"
 # Restrict language detection to these ISO-639-1 codes ([] = any language).
 candidate_languages = ["hy", "ru", "en"]
@@ -37,6 +39,12 @@ min_language_prob = 0.5
 device = "cuda"
 # Unload models that were not used for this many minutes (frees GPU memory).
 idle_unload_minutes = 15
+# Engines/detectors (names from [engines.*] / [detectors.*]) that are loaded at startup and
+# never unloaded: not by the idle timer, /unload, or out-of-memory eviction. Mind your VRAM.
+# keep_loaded = ["omnilingual", "whisper"]
+# Engines/detectors (names from [engines.*] / [detectors.*]) that are loaded at startup and
+# never unloaded: not by the idle timer, /unload, or out-of-memory eviction. Mind your VRAM.
+# keep_loaded = ["omnilingual", "whisper"]
 
 [limits]
 # Applied to whitelisted users; the owner is never limited.

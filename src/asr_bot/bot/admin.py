@@ -23,7 +23,7 @@ from telegram.ext import ContextTypes
 from .. import languages
 from ..auth import parse_target
 from ..db import UserRow
-from ..engine import ENGINE_SCORING
+from ..engine import ENGINE_SCORING, NO_DETECTOR
 from ..limits import fmt_duration
 from .services import Services, services
 
@@ -111,8 +111,11 @@ def detector_menu(svc: Services):
             for n, d in svc.engines.detectors.items()]
     rows.append([B(_mark(cur == ENGINE_SCORING) + "engine-scoring – try each candidate language",
                    callback_data=f"adm:set:language_detector:{ENGINE_SCORING}")])
+    rows.append([B(_mark(cur == NO_DETECTOR) + "none – no detection, no language tag",
+                   callback_data=f"adm:set:language_detector:{NO_DETECTOR}")])
     text = ("🌐 <b>Language detection</b>\n\n"
-            "Detectors return a probability per language; only the candidate languages are kept.\n"
+            "Detectors return a probability per language; only the candidate languages are kept. "
+            "<b>none</b> skips detection: the engine decides, and replies carry no language tag.\n"
             "<b>engine-scoring</b> transcribes the first 15 s once per candidate language and keeps "
             "the most likely one (slower, needs candidate languages).")
     return text, InlineKeyboardMarkup([*rows, _back()])
@@ -375,7 +378,11 @@ async def unload_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if not _is_owner(update, svc):
         return
     unloaded = await svc.engines.call(svc.engines.unload_all)
-    await update.effective_message.reply_text("Unloaded: " + (", ".join(unloaded) or "nothing was loaded"))
+    text = "Unloaded: " + (", ".join(unloaded) or "nothing was loaded")
+    kept = [n for n in svc.engines.loaded() if svc.engines.is_pinned(n)]
+    if kept:
+        text += "\nKept loaded (pinned): " + ", ".join(kept)
+    await update.effective_message.reply_text(text)
 
 
 async def users_shared(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

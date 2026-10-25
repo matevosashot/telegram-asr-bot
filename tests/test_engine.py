@@ -117,3 +117,57 @@ async def test_oom_unloads_other_models_and_retries(config, monkeypatch):
     assert r.transcript.text == "ok" and attempts == ["armo", "armo"]
     assert not em.engines["general"].is_loaded() and not em.engines["ru"].is_loaded()
     await em.shutdown()
+
+
+def test_pinned_engines_are_never_unloaded(tmp_path):
+    from .conftest import make_config
+
+    em = EngineManager(make_config(tmp_path, transcription={"keep_loaded": ["armo"]}))
+    em.warmup_pinned()
+    em.warmup(["general"])
+    assert em.engines["armo"].is_loaded() and em.engines["general"].is_loaded()
+    assert em.unload_all() == ["general"]
+    em._last_used["armo"] = 0
+    assert em.unload_idle(3600) == []
+    assert em.engines["armo"].is_loaded()
+    assert em.unload_all(include_pinned=True) == ["armo"]
+
+
+async def test_oom_retry_spares_pinned_models(tmp_path, monkeypatch):
+    from asr_bot.asr import Transcript
+    from .conftest import make_config
+
+    em = EngineManager(make_config(tmp_path, transcription={"keep_loaded": ["ru"]}))
+    em.warmup(["general", "ru"])
+    attempts = []
+
+    def flaky(self, audio, language=None):
+        attempts.append(self.name)
+        if len(attempts) == 1:
+            raise RuntimeError("CUDA failed with error out of memory")
+        return Transcript("ok", "hy")
+
+    monkeypatch.setattr(FakeBackend, "transcribe", flaky)
+    await em.transcribe(_audio(), plan())
+    assert not em.engines["general"].is_loaded() and em.engines["ru"].is_loaded()
+    await em.shutdown()
+    assert not em.engines["ru"].is_loaded()  # shutdown still releases pinned models
+
+
+async def test_detector_none_skips_detection(config):
+    em = EngineManager(config)
+    r = await em.transcribe(_audio(), plan(detector="none", engine_choice="armo"))
+    assert r.guess is None and r.hint is None and r.engine == "armo"
+    from asr_bot.bot.format import header
+
+    r.transcript.language = None
+    assert header(r).startswith("armo")  # no flag / language name
+    await em.shutdown()
+
+
+def test_keep_loaded_must_name_a_known_engine(tmp_path):
+    from asr_bot.config import ConfigError
+    from .conftest import make_config
+
+    with pytest.raises(ConfigError):
+        make_config(tmp_path, transcription={"keep_loaded": ["nope"]})

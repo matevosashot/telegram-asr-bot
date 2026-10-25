@@ -1,5 +1,6 @@
 # systemd user service for asr-bot.
 #   mkdir -p ~/.config/systemd/user && cp deploy/asr-bot.service ~/.config/systemd/user/
+#   edit ExecStart to point at your environment's asr-bot
 #   echo 'TELEGRAM_BOT_TOKEN=123:abc' > ~/.config/asr-bot/env && chmod 600 ~/.config/asr-bot/env
 #   systemctl --user daemon-reload && systemctl --user enable --now asr-bot
 #   journalctl --user -u asr-bot -f
@@ -11,9 +12,15 @@ Wants=network-online.target
 
 [Service]
 EnvironmentFile=%h/.config/asr-bot/env
+# Model weights (Hugging Face, fairseq2, the bf16 Omnilingual copy) all live under ~/.cache.
+Environment=XDG_CACHE_HOME=%h/.cache
+Environment=HF_HOME=%h/.cache/huggingface
+Environment=FAIRSEQ2_CACHE_DIR=%h/.cache/fairseq2
 ExecStart=%h/miniconda3/envs/asrbot/bin/asr-bot run
 Restart=on-failure
 RestartSec=10
+# Pinned models (transcription.keep_loaded) load right after start.
+TimeoutStartSec=600
 
 [Install]
 WantedBy=default.target

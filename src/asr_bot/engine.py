@@ -20,6 +20,7 @@ from .lid import LanguageDetector, LanguageGuess, detector_types
 log = logging.getLogger(__name__)
 
 ENGINE_SCORING = "engine-scoring"
+NO_DETECTOR = "none"
 SCORING_WINDOW = 15.0
 
 
@@ -62,10 +63,12 @@ class EngineManager:
         self.engines: dict[str, ASRBackend] = {}
         self.detectors: dict[str, LanguageDetector] = {}
         self.unavailable: dict[str, str] = {}  # name -> reason (engines and detectors)
+        self.pinned: set[str] = set(config.keep_loaded)  # never unloaded (engine or detector names)
         self._last_used: dict[str, float] = {}
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="asr-gpu")
         self._pending = 0
         self._idle_task: asyncio.Task | None = None
+        self._preload_task: asyncio.Task | None = None
         self._build()
 
     # ---- construction ------------------------------------------------------------------
@@ -155,32 +158,38 @@ class EngineManager:
         """Run something on the GPU thread (e.g. unloading)."""
         return await asyncio.get_running_loop().run_in_executor(self._executor, fn, *args)
 
+    def is_pinned(self, key: str) -> bool:
+        return key in self.pinned or key.removeprefix("detector:") in self.pinned
+
     def loaded(self) -> list[str]:
         names = [n for n, e in self.engines.items() if e.is_loaded()]
         names += [f"detector:{n}" for n, d in self.detectors.items() if d.is_loaded()]
         return names
 
-    def unload_all(self) -> list[str]:
+    def unload_all(self, include_pinned: bool = False) -> list[str]:
+        """Unload everything that is not pinned (or everything); returns the names unloaded."""
         unloaded = []
-        for name, eng in self.engines.items():
-            if eng.is_loaded():
-                eng.unload()
-                unloaded.append(name)
-        for name, det in self.detectors.items():
-            if det.is_loaded():
-                det.unload()
-                unloaded.append(f"detector:{name}")
+        for key, comp in self._components():
+            if comp.is_loaded() and (include_pinned or not self.is_pinned(key)):
+                comp.unload()
+                unloaded.append(key)
         return unloaded
 
     def unload_idle(self, max_idle_seconds: float) -> list[str]:
         now = time.time()
         unloaded = []
         for key, comp in self._components():
-            if comp.is_loaded() and now - self._last_used.get(key, 0) > max_idle_seconds:
+            if comp.is_loaded() and not self.is_pinned(key) and now - self._last_used.get(key, 0) > max_idle_seconds:
                 log.info("unloading idle %s", key)
                 comp.unload()
                 unloaded.append(key)
         return unloaded
+
+    def start_preload(self) -> None:
+        """Load pinned models in the background, on the GPU thread: requests that arrive while
+        they load simply queue behind it."""
+        if self.pinned and self._preload_task is None:
+            self._preload_task = asyncio.get_running_loop().create_task(self.call(self.warmup_pinned))
 
     def start_idle_unloader(self) -> None:
         minutes = self.config.idle_unload_minutes
@@ -198,19 +207,33 @@ class EngineManager:
         self._idle_task = asyncio.get_running_loop().create_task(loop())
 
     async def shutdown(self) -> None:
+        if self._preload_task:
+            self._preload_task.cancel()
+            self._preload_task = None
         if self._idle_task:
             self._idle_task.cancel()
             self._idle_task = None
         try:
-            await self.call(self.unload_all)
+            await self.call(self.unload_all, True)
         finally:
             self._executor.shutdown(wait=False)
 
     def warmup(self, names: list[str]) -> None:
         for key, comp in self._components():
             if key in names or key.removeprefix("detector:") in names:
+                log.info("loading %s", key)
                 comp.load()
                 self._last_used[key] = time.time()
+                log.info("%s is loaded", key)
+
+    def warmup_pinned(self) -> None:
+        """Load every pinned model; a failure is logged and the model loads on first use instead."""
+        for key, comp in self._components():
+            if self.is_pinned(key):
+                try:
+                    self.warmup([key])
+                except Exception:
+                    log.exception("could not preload %s", key)
 
     # ---- the actual work (runs on the GPU thread) --------------------------------------
 
@@ -265,7 +288,7 @@ class EngineManager:
                 raise
             log.warning("GPU out of memory in %s; unloading other models and retrying", keep)
         for key, comp in self._components():
-            if key != keep and comp.is_loaded():
+            if key != keep and comp.is_loaded() and not self.is_pinned(key):
                 comp.unload()
         comp = self.engines.get(keep) or self.detectors.get(keep.removeprefix("detector:"))
         if comp is not None and comp.is_loaded():
@@ -274,6 +297,8 @@ class EngineManager:
         return fn()
 
     def _detect(self, audio: Audio, plan: Plan) -> LanguageGuess | None:
+        if plan.detector == NO_DETECTOR:
+            return None
         if plan.detector == ENGINE_SCORING and plan.candidates:
             scorer = self._scoring_engine(plan.engine_choice)
             if scorer is not None:
