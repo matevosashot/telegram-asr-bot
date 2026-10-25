@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "asr-bot"
+version = "0.1.0"
+description = "Telegram bot that transcribes voice messages with swappable ASR engines"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "python-telegram-bot[rate-limiter]>=22.8,<23",
+    "aiosqlite>=0.20",
+    "numpy",
+    "tomli>=2; python_version<'3.11'",
+]
+
+[project.optional-dependencies]
+whisper = ["faster-whisper>=1.1"]
+qwen = ["qwen-asr"]
+omni = ["omnilingual-asr", "safetensors", "pyarrow<21"]  # pyarrow>=21 needs numpy 2, fairseq2 pins numpy 1.x
+voxlingua = ["speechbrain>=1.0"]
+all = ["asr-bot[whisper,qwen,omni,voxlingua]"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+asr-bot = "asr_bot.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/asr_bot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "gpu: needs a GPU and downloaded models (run with -m gpu)",
+    "live: talks to the real Telegram API (needs ASR_BOT_TEST_TOKEN)",
+]
+addopts = "-m 'not gpu and not live'"
+filterwarnings = ["ignore:Tasks created via `Application.create_task`:UserWarning"]

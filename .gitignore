@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+dist/
+build/
+*.db
+*.db-journal
+config.toml
+config.local.toml
+.env
+tests/data/cache/

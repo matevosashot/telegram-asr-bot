@@ -1,0 +1,99 @@
+# asr-bot configuration. Copy to ~/.config/asr-bot/config.toml (or run `asr-bot init-config`).
+
+[telegram]
+# Your numeric Telegram user id. This user is the only superuser (owner).
+# Don't know it? Run the bot, send it /start and look at the log, or use @userinfobot.
+owner_id = 123456789          # your numeric Telegram id (send /whoami to the bot)
+# The bot token is read from this environment variable (recommended) ...
+token_env = "TELEGRAM_BOT_TOKEN"
+# ... or set it here (not recommended).
+# token = "123456:ABC..."
+# Optional self-hosted Bot API server (https://github.com/tdlib/telegram-bot-api) started
+# with --local; lifts the 20 MB download limit of the cloud Bot API.
+# local_api_url = "http://localhost:8081"
+
+[storage]
+data_dir = "~/.local/share/asr-bot"
+# Store transcript text in the interactions log (off: only metadata is stored).
+store_transcripts = false
+
+[logging]
+level = "INFO"
+
+# ---------------------------------------------------------------------------------------
+# Everything below in [transcription], [limits] and [features] is a *default*: the owner can
+# change it at runtime from the /admin menu (runtime values are stored in the database).
+# ---------------------------------------------------------------------------------------
+[transcription]
+# "auto" routes by detected language (see [routing]); or a name from [engines.*].
+default_engine = "auto"
+# A name from [detectors.*], or "engine-scoring" (transcribe a short clip once per candidate
+# language with an engine that supports scoring, and keep the most likely language).
+language_detector = "whisper"
+# Restrict language detection to these ISO-639-1 codes ([] = any language).
+candidate_languages = ["hy", "ru", "en"]
+# Below this detection confidence the engine gets no language hint.
+min_language_prob = 0.5
+device = "cuda"
+# Unload models that were not used for this many minutes (frees GPU memory).
+idle_unload_minutes = 15
+
+[limits]
+# Applied to whitelisted users; the owner is never limited.
+per_hour = 5
+per_day = 20
+max_audio_seconds = 180
+
+[features]
+groups = true                    # /t as a reply to a voice message in groups
+guest = true                     # Guest Mode: reply to a voice anywhere and mention @bot
+business = true                  # Telegram Business connected-bot mode
+business_reply_in_chat = false   # false: transcripts of business chats are sent to you privately
+business_auto_transcribe = false # transcribe every incoming voice in connected business chats
+notify_unknown_users = true      # DM the owner with Allow/Block buttons when a stranger writes
+
+[routing]
+# For engine "auto": explicit rules first ...
+rules = { hy = "omnilingual" }
+# ... then the first of these engines that supports the detected language.
+fallback = ["qwen3", "whisper"]
+
+# ---------------------------------------------------------------------------------------
+# Engines. `type` selects the implementation; the table name is what you see in the menu.
+# Built-in types: faster-whisper, qwen3-asr, omnilingual. More can be registered through the
+# "asr_bot.backends" entry point group (see README).
+# ---------------------------------------------------------------------------------------
+[engines.whisper]
+type = "faster-whisper"
+model = "large-v3"            # or "large-v3-turbo", or any CTranslate2 Whisper repo/path
+compute_type = "float16"
+beam_size = 5
+
+[engines.whisper-hy]
+type = "faster-whisper"
+model = "Chillarmo/whisper-large-v3-turbo-hy-ct2"  # Armenian fine-tune
+languages = ["hy"]
+compute_type = "float16"
+# Split audio at quiet points into pieces of at most this many seconds. Whisper truncates
+# long Armenian windows (many tokens per character); 12 s cut CER from 15% to 5% on FLEURS.
+max_chunk_seconds = 12
+
+[engines.qwen3]
+type = "qwen3-asr"
+model = "Qwen/Qwen3-ASR-1.7B"
+
+[engines.omnilingual]
+type = "omnilingual"
+model = "omniASR_LLM_Unlimited_3B_v2"   # 300M/1B/3B/7B variants exist
+# The first load also writes a bf16 copy of the weights (8 GB for 3B) to weights_dir; later loads
+# use it and take ~10 s instead of ~20 s. Set fast_weights = false to turn this off.
+# fast_weights = true
+# weights_dir = "~/.cache/asr-bot/weights"
+
+# Language detectors.
+[detectors.whisper]
+type = "whisper-lid"
+model = "large-v3-turbo"
+
+[detectors.voxlingua]
+type = "voxlingua107"

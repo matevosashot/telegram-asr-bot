@@ -1,0 +1,19 @@
+# systemd user service for asr-bot.
+#   mkdir -p ~/.config/systemd/user && cp deploy/asr-bot.service ~/.config/systemd/user/
+#   echo 'TELEGRAM_BOT_TOKEN=123:abc' > ~/.config/asr-bot/env && chmod 600 ~/.config/asr-bot/env
+#   systemctl --user daemon-reload && systemctl --user enable --now asr-bot
+#   journalctl --user -u asr-bot -f
+#   loginctl enable-linger $USER   # keep it running when you are logged out
+[Unit]
+Description=asr-bot Telegram transcription bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=%h/.config/asr-bot/env
+ExecStart=%h/miniconda3/envs/asrbot/bin/asr-bot run
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
